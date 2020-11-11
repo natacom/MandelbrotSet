@@ -8,6 +8,7 @@
         Title="MainWindow" Height="500" Width="800">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+        <local:DoubleConverter x:Key="DoubleConverter"/>
     </Window.Resources>
     <Grid>
         <Grid.RowDefinitions>
@@ -46,9 +47,9 @@
             <TextBlock Text="Centre point:" Style="{StaticResource Label}"/>
             <StackPanel Style="{StaticResource Property}">
                 <TextBlock Text="( "/>
-                <TextBox Text="{Binding Controller.X, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input}" />
+                <TextBox Text="{Binding Controller.X, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource DoubleConverter}}" Style="{StaticResource Input}" />
                 <TextBlock Text=", "/>
-                <TextBox Text="{Binding Controller.Y, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input}" />
+                <TextBox Text="{Binding Controller.Y, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource DoubleConverter}}" Style="{StaticResource Input}" />
                 <TextBlock Text=" )"/>
             </StackPanel>
             <CheckBox IsChecked="{Binding Controller.ShowAxes}" Content="Show axes" Margin="10"/>
@@ -56,9 +57,9 @@
             <TextBlock Text="Canvas size:" Style="{StaticResource Label}"/>
             <StackPanel  Style="{StaticResource Property}">
                 <TextBlock Text="( "/>
-                <TextBox Text="{Binding Controller.W, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input}" />
+                <TextBox Text="{Binding Controller.W, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource DoubleConverter}}" Style="{StaticResource Input}" />
                 <TextBlock Text=", "/>
-                <TextBox Text="{Binding Controller.H, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input}" />
+                <TextBox Text="{Binding Controller.H, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource DoubleConverter}}" Style="{StaticResource Input}" />
                 <TextBlock Text=" )"/>
             </StackPanel>
             <CheckBox IsChecked="{Binding Controller.FixedAspect}" Content="1:1 Aspect ratio" Margin="10"/>
