@@ -27,6 +27,7 @@ namespace MandelbrotSet
         private int m_N = 1000;
         private double m_Threshold = 2;
 
+        Bitmap m_imageCache;
         private BitmapImage m_image = new BitmapImage();
         private bool m_showAxes = false;
         private bool m_lockAspect = true;
@@ -43,8 +44,22 @@ namespace MandelbrotSet
         public Progress Progress { get; } = new Progress();
         public Information Information { get; } = new Information();
 
-        public double X { get => m_X; set { m_X = value; Refresh(); } }
-        public double Y { get => m_Y; set { m_Y = value; Refresh(); } }
+        public double X {
+            get => m_X;
+            set {
+                m_X = value;
+                Notify();
+                Refresh();
+            }
+        }
+        public double Y {
+            get => m_Y;
+            set {
+                m_Y = value;
+                Notify();
+                Refresh();
+            }
+        }
         public double W {
             get => m_W;
             set
@@ -73,7 +88,7 @@ namespace MandelbrotSet
         public double Threshold { get => m_Threshold; set { m_Threshold = value; Refresh(); } }
         public BitmapImage Image { get => m_image; private set { m_image = value; Notify(); } }
 
-        public GeneralCommand RefreshCommand { get; }
+        public GeneralCommand ResetCommand { get; }
         public bool ShowAxes
         {
             get => m_showAxes;
@@ -99,7 +114,14 @@ namespace MandelbrotSet
 
         public ControllerViewModel()
         {
-            RefreshCommand = new GeneralCommand(() => true, Refresh);
+            ResetCommand = new GeneralCommand(() => true, () =>
+            {
+                X = -0.5;
+                Y = 0;
+                W = 3;
+                FixedAspect = true;
+                Refresh();
+            });
             SaveCommand = new GeneralCommand(() => true, SaveImage);
             Refresh();
         }
@@ -124,6 +146,70 @@ namespace MandelbrotSet
             UpdateHeightIfNeeded();
             Refresh();
         }
+
+        #region method related to mouse
+
+        private bool m_isWhileDnD = false;
+        private Point m_dndBeginPos = Point.Empty;
+        private Point m_dndEndPos = Point.Empty;
+
+        public void BeginDnD(int x, int y)
+        {
+            m_dndBeginPos = new Point(x, y);
+            m_isWhileDnD = true;
+        }
+
+        public void DuringDnD(int x, int y)
+        {
+            if (m_isWhileDnD) {
+                if (FixedAspect) {
+                    double aspectRatio = (double)m_canvasSize.Height / m_canvasSize.Width;
+                    int fixedY = (int)(aspectRatio * (x - m_dndBeginPos.X)) + m_dndBeginPos.Y;
+                    m_dndEndPos = new Point(x, fixedY);
+                }
+                else {
+                    m_dndEndPos = new Point(x, y);
+                }
+                RefreshSelectingRect();
+            }
+        }
+
+        public void EndDnD()
+        {
+            UpdatePosAndScale();
+            m_isWhileDnD = false;
+        }
+
+        private void RefreshSelectingRect()
+        {
+            Bitmap bitmap = (Bitmap)m_imageCache.Clone();
+
+            Graphics g = Graphics.FromImage(bitmap);
+
+            int x1 = Math.Min(m_dndBeginPos.X, m_dndEndPos.X);
+            int y1 = Math.Min(m_dndBeginPos.Y, m_dndEndPos.Y);
+            int x2 = Math.Max(m_dndBeginPos.X, m_dndEndPos.X);
+            int y2 = Math.Max(m_dndBeginPos.Y, m_dndEndPos.Y);
+            g.DrawRectangle(Pens.Red, x1, y1, x2 - x1, y2 - y1);
+
+            BitmapToImageSource(bitmap);
+        }
+
+        private void UpdatePosAndScale()
+        {
+            int x1 = Math.Min(m_dndBeginPos.X, m_dndEndPos.X);
+            int y1 = Math.Min(m_dndBeginPos.Y, m_dndEndPos.Y);
+            int x2 = Math.Max(m_dndBeginPos.X, m_dndEndPos.X);
+            int y2 = Math.Max(m_dndBeginPos.Y, m_dndEndPos.Y);
+            PointF bottomLeftPos = CalculatePositionFromCanvasPos(x1, y2);
+            PointF topRightPos = CalculatePositionFromCanvasPos(x2, y1);
+            X = bottomLeftPos.X + (double)(topRightPos.X - bottomLeftPos.X) / 2;
+            Y = bottomLeftPos.Y + (double)(topRightPos.Y - bottomLeftPos.Y) / 2;
+            H = topRightPos.Y - bottomLeftPos.Y;
+            W = topRightPos.X - bottomLeftPos.X;
+        }
+
+        #endregion
 
         #region methods related to image
 
@@ -181,19 +267,8 @@ namespace MandelbrotSet
             m_renderingTask = Task.Run(() =>
             {
                 try {
-                    Bitmap bitmap = Render(true);
-
-                    using (MemoryStream ms = new MemoryStream()) {
-                        bitmap.Save(ms, ImageFormat.Bmp);
-                        ms.Seek(0, SeekOrigin.Begin);
-                        BitmapImage tmpImg = new BitmapImage();
-                        tmpImg.BeginInit();
-                        tmpImg.CacheOption = BitmapCacheOption.OnLoad;
-                        tmpImg.StreamSource = ms;
-                        tmpImg.EndInit();
-                        tmpImg.Freeze();
-                        Image = tmpImg;
-                    }
+                    m_imageCache = Render(true);
+                    BitmapToImageSource(m_imageCache);
                 }
                 catch(OperationCanceledException) {
                     /* do nothing */
@@ -205,59 +280,80 @@ namespace MandelbrotSet
         {
             Bitmap bitmap = new Bitmap(m_canvasSize.Width, m_canvasSize.Height);
             Graphics g = Graphics.FromImage(bitmap);
-            g.FillRectangle(Brushes.White, new Rectangle(0, 0, bitmap.Width, bitmap.Height));
+            try {
+                g.FillRectangle(Brushes.White, new Rectangle(0, 0, bitmap.Width, bitmap.Height));
 
-            // Fill each pixel with calculated colour.
-            for (int x = 0; x < bitmap.Width; ++x) {
-                const int maxConcurrency = 12;
-                List<Task> tasks = new List<Task>();
-                Color[] colors = new Color[bitmap.Height];
+                // Fill each pixel with calculated colour.
+                for (int x = 0; x < bitmap.Width; ++x) {
+                    const int maxConcurrency = 12;
+                    List<Task> tasks = new List<Task>();
+                    Color[] colours = new Color[bitmap.Height];
 
-                // Calculate each pixel asynchronously
-                using (SemaphoreSlim concurrencySemaphore = new SemaphoreSlim(maxConcurrency)) {
+                    // Calculate each pixel asynchronously
+                    using (SemaphoreSlim concurrencySemaphore = new SemaphoreSlim(maxConcurrency)) {
+                        for (int y = 0; y < bitmap.Height; ++y) {
+                            concurrencySemaphore.Wait();
+                            int _x = x;
+                            int _y = y;
+                            Task task = Task.Factory.StartNew(() =>
+                            {
+                                PointF pos = CalculatePositionFromCanvasPos(_x, _y);
+                                colours[_y] = CalculateColour(pos);
+
+                                concurrencySemaphore.Release();
+                            });
+
+                            tasks.Add(task);
+                        }
+                        Task.WaitAll(tasks.ToArray());
+                    }
+
+                    // Fill bitmap pixels with colours
                     for (int y = 0; y < bitmap.Height; ++y) {
-                        concurrencySemaphore.Wait();
-                        int _x = x;
-                        int _y = y;
-                        Task task = Task.Factory.StartNew(() =>
-                        {
-                            PointF pos = CalculatePositionFromCanvasPos(_x, _y);
-                            colors[_y] = CalculateColour(pos);
-
-                            concurrencySemaphore.Release();
-                        });
-
-                        tasks.Add(task);
+                        if (colours[y] != Color.Transparent) {
+                            bitmap.SetPixel(x, bitmap.Height - y - 1, colours[y]);
+                        }
                     }
-                    Task.WaitAll(tasks.ToArray());
+
+                    // update Progress
+                    Progress.UpdateProgress(100 * x / bitmap.Width, isForRendering);
+
+                    // for cancellation
+                    m_renderingCancellation.Token.ThrowIfCancellationRequested();
+                }
+                Progress.UpdateProgress(-1, isForRendering);
+
+                if (m_showAxes) {
+                    // Draw axes of the coordinate
+                    Point org = CalculateOriginOnCanvas();
+                    g.DrawLine(Pens.Gray, new Point(org.X, 0), new Point(org.X, bitmap.Height));
+                    g.DrawLine(Pens.Gray, new Point(0, org.Y), new Point(bitmap.Width, org.Y));
                 }
 
-                // Fill bitmap pixels with colours
-                for (int y = 0; y < bitmap.Height; ++y) {
-                    if (colors[y] != Color.Transparent) {
-                        bitmap.SetPixel(x, y, colors[y]);
-                    }
-                }
+                g.Flush();
 
-                // update Progress
-                Progress.UpdateProgress(100 * x / bitmap.Width, isForRendering);
-
-                // for cancellation
-                m_renderingCancellation.Token.ThrowIfCancellationRequested();
+                bitmap.RotateFlip(RotateFlipType.RotateNoneFlipY);
+                return bitmap;
             }
-            Progress.UpdateProgress(-1, isForRendering);
-
-            if (m_showAxes) {
-                // Draw axes of the coordinate
-                Point org = CalculateOriginOnCanvas();
-                g.DrawLine(Pens.Gray, new Point(org.X, 0), new Point(org.X, bitmap.Height));
-                g.DrawLine(Pens.Gray, new Point(0, org.Y), new Point(bitmap.Width, org.Y));
+            catch(Exception ex) {
+                Information.InfoString = ex.Message;
+                return m_imageCache;
             }
+        }
 
-            g.Flush();
-
-            bitmap.RotateFlip(RotateFlipType.RotateNoneFlipY);
-            return bitmap;
+        private void BitmapToImageSource(Bitmap bitmap)
+        {
+            using (MemoryStream ms = new MemoryStream()) {
+                bitmap.Save(ms, ImageFormat.Bmp);
+                ms.Seek(0, SeekOrigin.Begin);
+                BitmapImage tmpImg = new BitmapImage();
+                tmpImg.BeginInit();
+                tmpImg.CacheOption = BitmapCacheOption.OnLoad;
+                tmpImg.StreamSource = ms;
+                tmpImg.EndInit();
+                tmpImg.Freeze();
+                Image = tmpImg;
+            }
         }
 
         private Point CalculateOriginOnCanvas()
@@ -278,7 +374,7 @@ namespace MandelbrotSet
             double ratioX = (double)x / m_canvasSize.Width;
             double posX = W * ratioX - W / 2 + X;
 
-            double ratioY = (double)y / m_canvasSize.Height;
+            double ratioY = (double)(m_canvasSize.Height - y) / m_canvasSize.Height;
             double posY = H * ratioY - H / 2 + Y;
 
             return new PointF((float)posX, (float)posY);

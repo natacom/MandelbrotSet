@@ -74,7 +74,7 @@
                 <TextBox Text="{Binding Controller.Threshold, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input}" Width="100"/>
             </StackPanel>
             <!-- Refresh button / progress -->
-            <Button Content="Refresh" Command="{Binding Controller.RefreshCommand}"/>
+            <Button Content="Reset" Command="{Binding Controller.ResetCommand}"/>
             <ProgressBar Value="{Binding Controller.Progress.RenderingProgress, Mode=OneWay}" Visibility="{Binding Controller.Progress.ShowRenderingProgress, Converter={StaticResource BoolToVisibility}}"/>
             <!-- Save button / progress -->
             <Button Content="Save" Command="{Binding Controller.SaveCommand}"/>

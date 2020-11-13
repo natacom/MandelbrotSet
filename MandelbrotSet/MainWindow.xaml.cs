@@ -19,6 +19,17 @@ namespace MandelbrotSet
                 controller_vm.SetCanvasSize((int)image.ActualWidth, (int)image.ActualHeight);
                 controller_vm.InitAfterLoading();
             };
+            image.MouseDown += (sender, arg) =>
+            {
+                if (arg.ChangedButton == System.Windows.Input.MouseButton.Left)
+                    controller_vm.BeginDnD((int)arg.GetPosition(image).X, (int)arg.GetPosition(image).Y);
+            };
+            image.MouseUp += (sender, arg) =>
+            {
+                if (arg.ChangedButton == System.Windows.Input.MouseButton.Left)
+                    controller_vm.EndDnD();
+            };
+            image.MouseMove += (sender, arg) => controller_vm.DuringDnD((int)arg.GetPosition(image).X, (int)arg.GetPosition(image).Y);
 
             DataContext = new {
                 Controller = controller_vm,
