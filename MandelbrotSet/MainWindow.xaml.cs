@@ -23,6 +23,8 @@ namespace MandelbrotSet
             {
                 if (arg.ChangedButton == System.Windows.Input.MouseButton.Left)
                     controller_vm.BeginDnD((int)arg.GetPosition(image).X, (int)arg.GetPosition(image).Y);
+                else if (arg.ChangedButton == System.Windows.Input.MouseButton.Right)
+                    controller_vm.CancelDnD();
             };
             image.MouseUp += (sender, arg) =>
             {

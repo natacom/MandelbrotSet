@@ -24,7 +24,7 @@ namespace MandelbrotSet
         private double m_W = 3;
         private double m_H = 2.11;
 
-        private int m_N = 1000;
+        private int m_N = 10000;
         private double m_Threshold = 2;
 
         Bitmap m_imageCache;
@@ -176,21 +176,31 @@ namespace MandelbrotSet
 
         public void EndDnD()
         {
-            UpdatePosAndScale();
+            if (m_isWhileDnD) {
+                UpdatePosAndScale();
+                m_isWhileDnD = false;
+            }
+        }
+
+        public void CancelDnD()
+        {
+            RefreshSelectingRect(false);
             m_isWhileDnD = false;
         }
 
-        private void RefreshSelectingRect()
+        private void RefreshSelectingRect(bool showRectangle = true)
         {
             Bitmap bitmap = (Bitmap)m_imageCache.Clone();
 
-            Graphics g = Graphics.FromImage(bitmap);
+            if (showRectangle) {
+                Graphics g = Graphics.FromImage(bitmap);
 
-            int x1 = Math.Min(m_dndBeginPos.X, m_dndEndPos.X);
-            int y1 = Math.Min(m_dndBeginPos.Y, m_dndEndPos.Y);
-            int x2 = Math.Max(m_dndBeginPos.X, m_dndEndPos.X);
-            int y2 = Math.Max(m_dndBeginPos.Y, m_dndEndPos.Y);
-            g.DrawRectangle(Pens.Red, x1, y1, x2 - x1, y2 - y1);
+                int x1 = Math.Min(m_dndBeginPos.X, m_dndEndPos.X);
+                int y1 = Math.Min(m_dndBeginPos.Y, m_dndEndPos.Y);
+                int x2 = Math.Max(m_dndBeginPos.X, m_dndEndPos.X);
+                int y2 = Math.Max(m_dndBeginPos.Y, m_dndEndPos.Y);
+                g.DrawRectangle(Pens.Red, x1, y1, x2 - x1, y2 - y1);
+            }
 
             BitmapToImageSource(bitmap);
         }
