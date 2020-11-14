@@ -112,6 +112,6 @@
         <Image Grid.Column="2" Grid.Row="0" Name="image" Source="{Binding Controller.Image}" Stretch="Fill" />
         
         <!-- Bottom info bar -->
-        <TextBlock Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Controller.Information.InfoString}"/>
+        <TextBlock Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2" Margin="5,0" Text="{Binding Controller.Information.InfoString}"/>
     </Grid>
 </Window>
