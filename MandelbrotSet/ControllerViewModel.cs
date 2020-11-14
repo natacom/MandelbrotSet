@@ -27,6 +27,8 @@ namespace MandelbrotSet
         private int m_N = 10000;
         private double m_Threshold = 2;
 
+        private int m_CoreNum = 1;
+
         Bitmap m_imageCache;
         private BitmapImage m_image = new BitmapImage();
         private bool m_showAxes = false;
@@ -86,6 +88,7 @@ namespace MandelbrotSet
         }
         public int N { get => m_N; set { m_N = value; Refresh(); } }
         public double Threshold { get => m_Threshold; set { m_Threshold = value; Refresh(); } }
+        public int CoreNum { get => m_CoreNum; set { m_CoreNum = value; Refresh(); } }
         public BitmapImage Image { get => m_image; private set { m_image = value; Notify(); } }
 
         public GeneralCommand ResetCommand { get; }
@@ -295,12 +298,11 @@ namespace MandelbrotSet
 
                 // Fill each pixel with calculated colour.
                 for (int x = 0; x < bitmap.Width; ++x) {
-                    const int maxConcurrency = 12;
                     List<Task> tasks = new List<Task>();
                     Color[] colours = new Color[bitmap.Height];
 
                     // Calculate each pixel asynchronously
-                    using (SemaphoreSlim concurrencySemaphore = new SemaphoreSlim(maxConcurrency)) {
+                    using (SemaphoreSlim concurrencySemaphore = new SemaphoreSlim(m_CoreNum)) {
                         for (int y = 0; y < bitmap.Height; ++y) {
                             concurrencySemaphore.Wait();
                             int _x = x;

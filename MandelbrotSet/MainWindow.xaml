@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:MandelbrotSet"
         mc:Ignorable="d"
-        Title="MainWindow" Height="500" Width="800">
+        Title="MainWindow" Height="550" Width="800">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
         <local:DoubleConverter x:Key="DoubleConverter"/>
@@ -17,10 +17,10 @@
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="200" MinWidth="200"/>
-            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="5"/>
             <ColumnDefinition Width="*" MinWidth="200"/>
         </Grid.ColumnDefinitions>
-        <StackPanel Grid.Row="0" Margin="10,0" Grid.RowSpan="2">
+        <StackPanel Grid.Row="0" Margin="10,0">
             <StackPanel.Resources>
                 <Style TargetType="{x:Type TextBlock}" x:Key="Label">
                     <Setter Property="Margin" Value="0,20,0,5"/>
@@ -47,6 +47,16 @@
                     <Setter Property="Height" Value="10"/>
                 </Style>
             </StackPanel.Resources>
+            <!-- param of Z_n+1 = z_n ^ 2 + c -->
+            <TextBlock Text="[ Z_n+1 = z_n ^ 2 + c ]:" Style="{StaticResource Label}"/>
+            <DockPanel Style="{StaticResource Property}" LastChildFill="True">
+                <Label DockPanel.Dock="Left" Content="n:" Style="{StaticResource PropertyLabel}"/>
+                <TextBox Text="{Binding Controller.N, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input}"/>
+            </DockPanel>
+            <DockPanel  Style="{StaticResource Property}" LastChildFill="True">
+                <Label DockPanel.Dock="Left" Content="Threshold:" Style="{StaticResource PropertyLabel}"/>
+                <TextBox Text="{Binding Controller.Threshold, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input}"/>
+            </DockPanel>
             <!-- Center point -->
             <TextBlock Text="Centre point:" Style="{StaticResource Label}"/>
             <Grid Style="{StaticResource Property}">
@@ -81,15 +91,11 @@
                 <TextBlock Grid.Column="4" Text=" )"/>
             </Grid>
             <CheckBox IsChecked="{Binding Controller.FixedAspect}" Content="1:1 Aspect ratio" Margin="10"/>
-            <!-- param of Z_n+1 = z_n ^ 2 + c -->
-            <TextBlock Text="[ Z_n+1 = z_n ^ 2 + c ]:" Style="{StaticResource Label}"/>
+            <!-- Performance -->
+            <TextBlock Text="Performance:" Style="{StaticResource Label}"/>
             <DockPanel Style="{StaticResource Property}" LastChildFill="True">
-                <Label DockPanel.Dock="Left" Content="n:" Style="{StaticResource PropertyLabel}"/>
-                <TextBox Text="{Binding Controller.N, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input}"/>
-            </DockPanel>
-            <DockPanel  Style="{StaticResource Property}" LastChildFill="True">
-                <Label DockPanel.Dock="Left" Content="Threshold:" Style="{StaticResource PropertyLabel}"/>
-                <TextBox Text="{Binding Controller.Threshold, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input}"/>
+                <Label DockPanel.Dock="Left" Content="Core num:" Style="{StaticResource PropertyLabel}"/>
+                <TextBox Text="{Binding Controller.CoreNum, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input}"/>
             </DockPanel>
             <!-- Refresh button / progress -->
             <Button Content="Reset" Command="{Binding Controller.ResetCommand}"/>
@@ -100,7 +106,7 @@
         </StackPanel>
         
         <!-- Splitter -->
-        <GridSplitter x:Name="splitter" Grid.Column="1" Grid.Row="0" HorizontalAlignment="Stretch" Width="5" />
+        <GridSplitter x:Name="splitter" Grid.Column="1" Grid.Row="0" HorizontalAlignment="Stretch" />
 
         <!-- Image -->
         <Image Grid.Column="2" Grid.Row="0" Name="image" Source="{Binding Controller.Image}" Stretch="Fill" />
