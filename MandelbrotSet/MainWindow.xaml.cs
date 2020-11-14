@@ -22,16 +22,27 @@ namespace MandelbrotSet
             image.MouseDown += (sender, arg) =>
             {
                 if (arg.ChangedButton == System.Windows.Input.MouseButton.Left)
-                    controller_vm.BeginDnD((int)arg.GetPosition(image).X, (int)arg.GetPosition(image).Y);
+                    controller_vm.BeginZoomInSelection((int)arg.GetPosition(image).X, (int)arg.GetPosition(image).Y);
                 else if (arg.ChangedButton == System.Windows.Input.MouseButton.Right)
-                    controller_vm.CancelDnD();
+                    controller_vm.CancelZoomInSelection();
             };
             image.MouseUp += (sender, arg) =>
             {
                 if (arg.ChangedButton == System.Windows.Input.MouseButton.Left)
-                    controller_vm.EndDnD();
+                    controller_vm.EndZoomInSelection();
+                else if (arg.ChangedButton == System.Windows.Input.MouseButton.Right)
+                    controller_vm.Move((int)arg.GetPosition(image).X, (int)arg.GetPosition(image).Y);
             };
-            image.MouseMove += (sender, arg) => controller_vm.DuringDnD((int)arg.GetPosition(image).X, (int)arg.GetPosition(image).Y);
+            image.MouseWheel += (sender, arg) =>
+            {
+                if (arg.Delta > 0) {
+                    controller_vm.ZoomIn();
+                }
+                else if (arg.Delta < 0) {
+                    controller_vm.ZoomOut();
+                }
+            };
+            image.MouseMove += (sender, arg) => controller_vm.DuringZoomInSelection((int)arg.GetPosition(image).X, (int)arg.GetPosition(image).Y);
 
             DataContext = new {
                 Controller = controller_vm,

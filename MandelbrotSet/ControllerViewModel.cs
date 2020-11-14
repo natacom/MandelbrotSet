@@ -129,6 +129,11 @@ namespace MandelbrotSet
             Refresh();
         }
 
+        ~ControllerViewModel()
+        {
+            m_imageCache?.Dispose();
+        }
+
         public void InitAfterLoading()
         {
             FixedAspect = true;
@@ -156,13 +161,13 @@ namespace MandelbrotSet
         private Point m_dndBeginPos = Point.Empty;
         private Point m_dndEndPos = Point.Empty;
 
-        public void BeginDnD(int x, int y)
+        public void BeginZoomInSelection(int x, int y)
         {
             m_dndBeginPos = new Point(x, y);
             m_isWhileDnD = true;
         }
 
-        public void DuringDnD(int x, int y)
+        public void DuringZoomInSelection(int x, int y)
         {
             if (m_isWhileDnD) {
                 if (FixedAspect) {
@@ -177,7 +182,7 @@ namespace MandelbrotSet
             }
         }
 
-        public void EndDnD()
+        public void EndZoomInSelection()
         {
             if (m_isWhileDnD) {
                 UpdatePosAndScale();
@@ -185,10 +190,29 @@ namespace MandelbrotSet
             }
         }
 
-        public void CancelDnD()
+        public void CancelZoomInSelection()
         {
             RefreshSelectingRect(false);
             m_isWhileDnD = false;
+        }
+
+        public void ZoomIn(int n = 2)
+        {
+            W /= n;
+            H /= n;
+        }
+
+        public void ZoomOut(int n = 2)
+        {
+            W *= n;
+            H *= n;
+        }
+
+        public void Move(int x, int y)
+        {
+            System.Windows.Point pos = CalculatePositionFromCanvasPos(x, y);
+            X = pos.X;
+            Y = pos.Y;
         }
 
         private void RefreshSelectingRect(bool showRectangle = true)
@@ -273,6 +297,7 @@ namespace MandelbrotSet
                 catch (Exception) {
                     // The Task.Wait() throw an exception when the thread is cancelled.
                 }
+                m_renderingTask.Dispose();
                 m_renderingCancellation.Dispose();
                 m_renderingCancellation = new CancellationTokenSource();
             }
@@ -303,13 +328,14 @@ namespace MandelbrotSet
 
                     // Calculate each pixel asynchronously
                     using (SemaphoreSlim concurrencySemaphore = new SemaphoreSlim(m_CoreNum)) {
+                        System.Windows.Point pos;
                         for (int y = 0; y < bitmap.Height; ++y) {
                             concurrencySemaphore.Wait();
                             int _x = x;
                             int _y = y;
                             Task task = Task.Factory.StartNew(() =>
                             {
-                                System.Windows.Point pos = CalculatePositionFromCanvasPos(_x, _y);
+                                pos = CalculatePositionFromCanvasPos(_x, _y);
                                 colours[_y] = CalculateColour(pos);
 
                                 concurrencySemaphore.Release();
@@ -318,6 +344,7 @@ namespace MandelbrotSet
                             tasks.Add(task);
                         }
                         Task.WaitAll(tasks.ToArray());
+                        tasks.ForEach(t => t?.Dispose());
                     }
 
                     // Fill bitmap pixels with colours
@@ -349,6 +376,8 @@ namespace MandelbrotSet
             }
             catch(Exception ex) {
                 Information.InfoString = ex.Message;
+                g?.Dispose();
+                bitmap?.Dispose();
                 return m_imageCache;
             }
         }
