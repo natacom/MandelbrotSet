@@ -16,21 +16,25 @@
             <RowDefinition Height="20"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="200"/>
-            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="200" MinWidth="200"/>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition Width="*" MinWidth="200"/>
         </Grid.ColumnDefinitions>
         <StackPanel Grid.Row="0" Margin="10,0" Grid.RowSpan="2">
             <StackPanel.Resources>
                 <Style TargetType="{x:Type TextBlock}" x:Key="Label">
                     <Setter Property="Margin" Value="0,20,0,5"/>
                 </Style>
-                <Style TargetType="{x:Type StackPanel}" x:Key="Property">
+                <Style TargetType="{x:Type FrameworkElement}" x:Key="Property">
+                    <Setter Property="HorizontalAlignment" Value="Stretch"/>
                     <Setter Property="Margin" Value="0,5"/>
-                    <Setter Property="Orientation" Value="Horizontal"/>
-                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                </Style>
+                <Style TargetType="Label" x:Key="PropertyLabel">
+                    <Setter Property="HorizontalContentAlignment" Value="Right"/>
+                    <Setter Property="Width" Value="70"/>
                 </Style>
                 <Style TargetType="{x:Type TextBox}" x:Key="Input">
-                    <Setter Property="Width" Value="75"/>
+                    <Setter Property="HorizontalAlignment" Value="Stretch"/>
                     <Setter Property="Height" Value="20"/>
                 </Style>
                 <Style TargetType="{x:Type Button}">
@@ -45,34 +49,48 @@
             </StackPanel.Resources>
             <!-- Center point -->
             <TextBlock Text="Centre point:" Style="{StaticResource Label}"/>
-            <StackPanel Style="{StaticResource Property}">
-                <TextBlock Text="( "/>
-                <TextBox Text="{Binding Controller.X, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource DoubleConverter}}" Style="{StaticResource Input}" />
-                <TextBlock Text=", "/>
-                <TextBox Text="{Binding Controller.Y, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource DoubleConverter}}" Style="{StaticResource Input}" />
-                <TextBlock Text=" )"/>
-            </StackPanel>
+            <Grid Style="{StaticResource Property}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="( "/>
+                <TextBox   Grid.Column="1" Text="{Binding Controller.X, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource DoubleConverter}}" Style="{StaticResource Input}" />
+                <TextBlock Grid.Column="2" Text=", "/>
+                <TextBox   Grid.Column="3" Text="{Binding Controller.Y, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource DoubleConverter}}" Style="{StaticResource Input}" />
+                <TextBlock Grid.Column="4" Text=" )"/>
+            </Grid>
             <CheckBox IsChecked="{Binding Controller.ShowAxes}" Content="Show axes" Margin="10"/>
             <!-- Canvas size -->
             <TextBlock Text="Canvas size:" Style="{StaticResource Label}"/>
-            <StackPanel  Style="{StaticResource Property}">
-                <TextBlock Text="( "/>
-                <TextBox Text="{Binding Controller.W, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource DoubleConverter}}" Style="{StaticResource Input}" />
-                <TextBlock Text=", "/>
-                <TextBox Text="{Binding Controller.H, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource DoubleConverter}}" Style="{StaticResource Input}" />
-                <TextBlock Text=" )"/>
-            </StackPanel>
+            <Grid Style="{StaticResource Property}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="( "/>
+                <TextBox   Grid.Column="1" Text="{Binding Controller.W, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource DoubleConverter}}" Style="{StaticResource Input}" />
+                <TextBlock Grid.Column="2" Text=", "/>
+                <TextBox   Grid.Column="3" Text="{Binding Controller.H, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource DoubleConverter}}" Style="{StaticResource Input}" />
+                <TextBlock Grid.Column="4" Text=" )"/>
+            </Grid>
             <CheckBox IsChecked="{Binding Controller.FixedAspect}" Content="1:1 Aspect ratio" Margin="10"/>
             <!-- param of Z_n+1 = z_n ^ 2 + c -->
             <TextBlock Text="[ Z_n+1 = z_n ^ 2 + c ]:" Style="{StaticResource Label}"/>
-            <StackPanel  Style="{StaticResource Property}">
-                <Label Content="n:"/>
-                <TextBox Text="{Binding Controller.N, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input}" Width="100"/>
-            </StackPanel>
-            <StackPanel  Style="{StaticResource Property}">
-                <Label Content="Threshold:"/>
-                <TextBox Text="{Binding Controller.Threshold, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input}" Width="100"/>
-            </StackPanel>
+            <DockPanel Style="{StaticResource Property}" LastChildFill="True">
+                <Label DockPanel.Dock="Left" Content="n:" Style="{StaticResource PropertyLabel}"/>
+                <TextBox Text="{Binding Controller.N, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input}"/>
+            </DockPanel>
+            <DockPanel  Style="{StaticResource Property}" LastChildFill="True">
+                <Label DockPanel.Dock="Left" Content="Threshold:" Style="{StaticResource PropertyLabel}"/>
+                <TextBox Text="{Binding Controller.Threshold, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource Input}"/>
+            </DockPanel>
             <!-- Refresh button / progress -->
             <Button Content="Reset" Command="{Binding Controller.ResetCommand}"/>
             <ProgressBar Value="{Binding Controller.Progress.RenderingProgress, Mode=OneWay}" Visibility="{Binding Controller.Progress.ShowRenderingProgress, Converter={StaticResource BoolToVisibility}}"/>
@@ -80,9 +98,14 @@
             <Button Content="Save" Command="{Binding Controller.SaveCommand}"/>
             <ProgressBar Value="{Binding Controller.Progress.SavingProgress, Mode=OneWay}" Visibility="{Binding Controller.Progress.ShowSavingProgress, Converter={StaticResource BoolToVisibility}}"/>
         </StackPanel>
-        <Image Grid.Column="1" Name="image" Source="{Binding Controller.Image}" Stretch="Fill" Grid.RowSpan="2" />
+        
+        <!-- Splitter -->
+        <GridSplitter x:Name="splitter" Grid.Column="1" Grid.Row="0" HorizontalAlignment="Stretch" Width="5" />
+
+        <!-- Image -->
+        <Image Grid.Column="2" Grid.Row="0" Name="image" Source="{Binding Controller.Image}" Stretch="Fill" />
         
         <!-- Bottom info bar -->
-        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Controller.Information.InfoString}"/>
+        <TextBlock Grid.Column="0" Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding Controller.Information.InfoString}"/>
     </Grid>
 </Window>

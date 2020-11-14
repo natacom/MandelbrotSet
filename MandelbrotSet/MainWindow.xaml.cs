@@ -13,7 +13,7 @@ namespace MandelbrotSet
         {
             InitializeComponent();
 
-            SizeChanged += (sender, arg) => controller_vm.SetCanvasSize((int)image.ActualWidth, (int)image.ActualHeight);
+            image.SizeChanged += (sender, arg) => controller_vm.SetCanvasSize((int)image.ActualWidth, (int)image.ActualHeight);
             Loaded += (sender, arg) =>
             {
                 controller_vm.SetCanvasSize((int)image.ActualWidth, (int)image.ActualHeight);
