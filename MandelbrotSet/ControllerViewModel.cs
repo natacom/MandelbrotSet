@@ -27,7 +27,7 @@ namespace MandelbrotSet
         private int m_N = 10000;
         private double m_Threshold = 2;
 
-        private int m_CoreNum = 1;
+        private int m_CoreNum = 12;
 
         Bitmap m_imageCache;
         private BitmapImage m_image = new BitmapImage();
