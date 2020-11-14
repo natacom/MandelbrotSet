@@ -201,10 +201,10 @@ namespace MandelbrotSet
             int y1 = Math.Min(m_dndBeginPos.Y, m_dndEndPos.Y);
             int x2 = Math.Max(m_dndBeginPos.X, m_dndEndPos.X);
             int y2 = Math.Max(m_dndBeginPos.Y, m_dndEndPos.Y);
-            PointF bottomLeftPos = CalculatePositionFromCanvasPos(x1, y2);
-            PointF topRightPos = CalculatePositionFromCanvasPos(x2, y1);
-            X = bottomLeftPos.X + (double)(topRightPos.X - bottomLeftPos.X) / 2;
-            Y = bottomLeftPos.Y + (double)(topRightPos.Y - bottomLeftPos.Y) / 2;
+            System.Windows.Point bottomLeftPos = CalculatePositionFromCanvasPos(x1, y2);
+            System.Windows.Point topRightPos = CalculatePositionFromCanvasPos(x2, y1);
+            X = bottomLeftPos.X + (topRightPos.X - bottomLeftPos.X) / 2;
+            Y = bottomLeftPos.Y + (topRightPos.Y - bottomLeftPos.Y) / 2;
             H = topRightPos.Y - bottomLeftPos.Y;
             W = topRightPos.X - bottomLeftPos.X;
         }
@@ -297,7 +297,7 @@ namespace MandelbrotSet
                             int _y = y;
                             Task task = Task.Factory.StartNew(() =>
                             {
-                                PointF pos = CalculatePositionFromCanvasPos(_x, _y);
+                                System.Windows.Point pos = CalculatePositionFromCanvasPos(_x, _y);
                                 colours[_y] = CalculateColour(pos);
 
                                 concurrencySemaphore.Release();
@@ -369,7 +369,7 @@ namespace MandelbrotSet
             return new Point((int)(m_canvasSize.Width * ratioX), (int)(m_canvasSize.Height * ratioY));
         }
 
-        private PointF CalculatePositionFromCanvasPos(int x, int y)
+        private System.Windows.Point CalculatePositionFromCanvasPos(int x, int y)
         {
             double ratioX = (double)x / m_canvasSize.Width;
             double posX = W * ratioX - W / 2 + X;
@@ -377,10 +377,13 @@ namespace MandelbrotSet
             double ratioY = (double)(m_canvasSize.Height - y) / m_canvasSize.Height;
             double posY = H * ratioY - H / 2 + Y;
 
-            return new PointF((float)posX, (float)posY);
+            // The mantissa of the double type is 52 bits so that
+            // the value is not accurate enough when the order of X is 1.0
+            // and the order of (W * ratioX - W / 2) is 1.0E-15.
+            return new System.Windows.Point(posX, posY);
         }
 
-        private Color CalculateColour(PointF pos)
+        private Color CalculateColour(System.Windows.Point pos)
         {
             bool isOverThreshold = false;
 
