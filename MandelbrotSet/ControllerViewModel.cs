@@ -11,33 +11,42 @@ using System.Threading;
 
 namespace MandelbrotSet
 {
-    public class ControllerViewModel: INotifyPropertyChanged
+    public class ControllerViewModel : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler PropertyChanged;
-        private void Notify([CallerMemberName]string name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        private void Notify([CallerMemberName] string name = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+        private void NotifyPosition()
+        {
+            Notify(nameof(X));
+            Notify(nameof(Y));
+        }
+        private void NotifySize()
+        {
+            Notify(nameof(W));
+            Notify(nameof(H));
+        }
+        private void NotifyCanvas()
+        {
+            Notify(nameof(X));
+            Notify(nameof(Y));
+            Notify(nameof(W));
+            Notify(nameof(H));
+        }
 
         #region private members
 
-        private Size m_canvasSize = new Size(1, 1);
-        private double m_X = -0.5;
-        private double m_Y = 0;
-        private double m_W = 3;
-        private double m_H = 2.11;
+        private int m_CoreNum = 8;
 
-        private int m_N = 10000;
-        private double m_Threshold = 2;
-
-        private int m_CoreNum = 12;
-
-        Bitmap m_imageCache;
         private BitmapImage m_image = new BitmapImage();
-        private bool m_showAxes = false;
         private bool m_lockAspect = true;
 
         private Task m_renderingTask;
         private Task m_savingTask;
         private CancellationTokenSource m_renderingCancellation = new CancellationTokenSource();
         private CancellationTokenSource m_savingCancellation = new CancellationTokenSource();
+
+        private CanvasModel m_canvas;
 
         #endregion
 
@@ -47,57 +56,85 @@ namespace MandelbrotSet
         public Information Information { get; } = new Information();
 
         public double X {
-            get => m_X;
+            get => m_canvas.CenterPoint.X;
             set {
-                m_X = value;
+                m_canvas.CenterPoint = new System.Windows.Point(value, Y);
                 Notify();
                 Refresh();
             }
         }
         public double Y {
-            get => m_Y;
+            get => m_canvas.CenterPoint.Y;
             set {
-                m_Y = value;
+                m_canvas.CenterPoint = new System.Windows.Point(X, value);
                 Notify();
                 Refresh();
             }
         }
         public double W {
-            get => m_W;
+            get => m_canvas.XYSize.Width;
             set
             {
-                m_W = value;
+                double w = value;
+                double h = m_canvas.XYSize.Height;
                 if (m_lockAspect) {
-                    m_H = (double)m_canvasSize.Height / m_canvasSize.Width * value;
-                    Notify(nameof(H));
+                    h = (double)m_canvas.Size.Height / m_canvas.Size.Width * value;
                 }
+                m_canvas.XYSize = new System.Windows.Size(w, h);
+                NotifySize();
                 Refresh();
             }
         }
         public double H {
-            get => m_H;
+            get => m_canvas.XYSize.Height;
             set
             {
-                m_H = value;
+                double h = value;
+                double w = m_canvas.XYSize.Width;
                 if (m_lockAspect) {
-                    m_W = (double)m_canvasSize.Width / m_canvasSize.Height * value;
-                    Notify(nameof(W));
+                    w = (double)m_canvas.Size.Width / m_canvas.Size.Height * value;
                 }
+                m_canvas.XYSize = new System.Windows.Size(w, h);
+                NotifySize();
                 Refresh();
             }
         }
-        public int N { get => m_N; set { m_N = value; Refresh(); } }
-        public double Threshold { get => m_Threshold; set { m_Threshold = value; Refresh(); } }
-        public int CoreNum { get => m_CoreNum; set { m_CoreNum = value; Refresh(); } }
-        public BitmapImage Image { get => m_image; private set { m_image = value; Notify(); } }
+        public int N {
+            get => m_canvas.N;
+            set {
+                m_canvas.N = value;
+                Refresh();
+            }
+        }
+        public double Threshold {
+            get => m_canvas.Threshold;
+            set {
+                m_canvas.Threshold = value;
+                Refresh();
+            }
+        }
+        public int CoreNum {
+            get => m_CoreNum;
+            set {
+                m_CoreNum = value;
+                Refresh();
+            }
+        }
+        public BitmapImage Image {
+            get => m_image;
+            private set {
+                m_image = value;
+                Notify();
+            }
+        }
 
         public GeneralCommand ResetCommand { get; }
         public bool ShowAxes
         {
-            get => m_showAxes;
+            get => m_canvas.ShowAxes;
             set
             {
-                m_showAxes = value;
+                m_canvas.ShowAxes = value;
                 Notify();
                 Refresh();
             }
@@ -126,31 +163,30 @@ namespace MandelbrotSet
                 Refresh();
             });
             SaveCommand = new GeneralCommand(() => true, SaveImage);
+            m_canvas = new CanvasModel(Progress, Information);
             Refresh();
-        }
-
-        ~ControllerViewModel()
-        {
-            m_imageCache?.Dispose();
         }
 
         public void InitAfterLoading()
         {
+            // This assignment updates Height by calculating from Width
+            // and update the View just after the app is loaded.
             FixedAspect = true;
         }
 
         private void UpdateHeightIfNeeded()
         {
             if (m_lockAspect) {
-                m_H = (double)m_canvasSize.Height / m_canvasSize.Width * W;
-                Notify(nameof(H));
+                m_canvas.XYSize = new System.Windows.Size(
+                    W, (double)m_canvas.Size.Height / m_canvas.Size.Width * W);
+                NotifySize();
                 Refresh();
             }
         }
 
-        public void SetCanvasSize(int x, int y)
+        public void SetCanvasSize(double x, double y)
         {
-            m_canvasSize = new Size(x, y);
+            m_canvas.Size = new System.Windows.Size(x, y);
             UpdateHeightIfNeeded();
             Refresh();
         }
@@ -158,26 +194,27 @@ namespace MandelbrotSet
         #region method related to mouse
 
         private bool m_isWhileDnD = false;
-        private Point m_dndBeginPos = Point.Empty;
-        private Point m_dndEndPos = Point.Empty;
+        private System.Windows.Point m_dndBeginPos = new System.Windows.Point();
+        private System.Windows.Point m_dndEndPos = new System.Windows.Point();
 
-        public void BeginZoomInSelection(int x, int y)
+        public void BeginZoomInSelection(double x, double y)
         {
-            m_dndBeginPos = new Point(x, y);
+            m_dndBeginPos = new System.Windows.Point(x, y);
             m_isWhileDnD = true;
         }
 
-        public void DuringZoomInSelection(int x, int y)
+        public void DuringZoomInSelection(double x, double y)
         {
             if (m_isWhileDnD) {
                 if (FixedAspect) {
-                    double aspectRatio = (double)m_canvasSize.Height / m_canvasSize.Width;
-                    int fixedY = (int)(aspectRatio * (x - m_dndBeginPos.X)) + m_dndBeginPos.Y;
-                    m_dndEndPos = new Point(x, fixedY);
+                    double aspectRatio = (double)m_canvas.Size.Height / m_canvas.Size.Width;
+                    double fixedY = aspectRatio * (x - m_dndBeginPos.X) + m_dndBeginPos.Y;
+                    m_dndEndPos = new System.Windows.Point(x, fixedY);
                 }
                 else {
-                    m_dndEndPos = new Point(x, y);
+                    m_dndEndPos = new System.Windows.Point(x, y);
                 }
+                m_canvas.SetSelectionRectangle(m_dndBeginPos, m_dndEndPos);
                 RefreshSelectingRect();
             }
         }
@@ -185,7 +222,9 @@ namespace MandelbrotSet
         public void EndZoomInSelection()
         {
             if (m_isWhileDnD) {
-                UpdatePosAndScale();
+                m_canvas.UpdatePosAndScale();
+                NotifyCanvas();
+                Refresh();
                 m_isWhileDnD = false;
             }
         }
@@ -208,51 +247,26 @@ namespace MandelbrotSet
             H *= n;
         }
 
-        public void Move(int x, int y)
+        public void Move(double x, double y)
         {
-            System.Windows.Point pos = CalculatePositionFromCanvasPos(x, y);
-            X = pos.X;
-            Y = pos.Y;
+            if (!m_isWhileDnD) {
+                m_canvas.UpdatePositionFromCanvasPoint(x, y);
+                NotifyPosition();
+                Refresh();
+            }
         }
 
         private void RefreshSelectingRect(bool showRectangle = true)
         {
-            Bitmap bitmap = (Bitmap)m_imageCache.Clone();
-
-            if (showRectangle) {
-                Graphics g = Graphics.FromImage(bitmap);
-
-                int x1 = Math.Min(m_dndBeginPos.X, m_dndEndPos.X);
-                int y1 = Math.Min(m_dndBeginPos.Y, m_dndEndPos.Y);
-                int x2 = Math.Max(m_dndBeginPos.X, m_dndEndPos.X);
-                int y2 = Math.Max(m_dndBeginPos.Y, m_dndEndPos.Y);
-                g.DrawRectangle(Pens.Red, x1, y1, x2 - x1, y2 - y1);
-            }
-
+            var bitmap = m_canvas.DrawSelectionRectangle(showRectangle);
             BitmapToImageSource(bitmap);
-        }
-
-        private void UpdatePosAndScale()
-        {
-            int x1 = Math.Min(m_dndBeginPos.X, m_dndEndPos.X);
-            int y1 = Math.Min(m_dndBeginPos.Y, m_dndEndPos.Y);
-            int x2 = Math.Max(m_dndBeginPos.X, m_dndEndPos.X);
-            int y2 = Math.Max(m_dndBeginPos.Y, m_dndEndPos.Y);
-            System.Windows.Point bottomLeftPos = CalculatePositionFromCanvasPos(x1, y2);
-            System.Windows.Point topRightPos = CalculatePositionFromCanvasPos(x2, y1);
-            X = bottomLeftPos.X + (topRightPos.X - bottomLeftPos.X) / 2;
-            Y = bottomLeftPos.Y + (topRightPos.Y - bottomLeftPos.Y) / 2;
-            H = topRightPos.Y - bottomLeftPos.Y;
-            W = topRightPos.X - bottomLeftPos.X;
         }
 
         #endregion
 
-        #region methods related to image
-
         public void SaveImage()
         {
-            if (m_canvasSize.Width == 0 || m_canvasSize.Height == 0) {
+            if (m_canvas.Size.Width == 0 || m_canvas.Size.Height == 0) {
                 return;
             }
 
@@ -271,9 +285,9 @@ namespace MandelbrotSet
             m_savingTask = Task.Run(() =>
             {
                 try {
-                    Bitmap bitmap = Render(false);
+                    var bitmap = m_canvas.Render(false, m_CoreNum, m_renderingCancellation.Token);
 
-                    using (FileStream fs = new FileStream("output.png", FileMode.OpenOrCreate)) {
+                    using (var fs = new FileStream("output.png", FileMode.OpenOrCreate)) {
                         bitmap.Save(fs, ImageFormat.Png);
                     }
                 }
@@ -285,7 +299,7 @@ namespace MandelbrotSet
 
         public void Refresh()
         {
-            if (m_canvasSize.Width == 0 || m_canvasSize.Height == 0) {
+            if (m_canvas.Size.Width == 0 || m_canvas.Size.Height == 0) {
                 return;
             }
 
@@ -305,8 +319,8 @@ namespace MandelbrotSet
             m_renderingTask = Task.Run(() =>
             {
                 try {
-                    m_imageCache = Render(true);
-                    BitmapToImageSource(m_imageCache);
+                    var bitmap = m_canvas.Render(true, m_CoreNum, m_renderingCancellation.Token);
+                    BitmapToImageSource(bitmap);
                 }
                 catch(OperationCanceledException) {
                     /* do nothing */
@@ -314,80 +328,12 @@ namespace MandelbrotSet
             }, m_renderingCancellation.Token);
         }
 
-        private Bitmap Render(bool isForRendering)
-        {
-            Bitmap bitmap = new Bitmap(m_canvasSize.Width, m_canvasSize.Height);
-            Graphics g = Graphics.FromImage(bitmap);
-            try {
-                g.FillRectangle(Brushes.White, new Rectangle(0, 0, bitmap.Width, bitmap.Height));
-
-                // Fill each pixel with calculated colour.
-                for (int x = 0; x < bitmap.Width; ++x) {
-                    List<Task> tasks = new List<Task>();
-                    Color[] colours = new Color[bitmap.Height];
-
-                    // Calculate each pixel asynchronously
-                    using (SemaphoreSlim concurrencySemaphore = new SemaphoreSlim(m_CoreNum)) {
-                        System.Windows.Point pos;
-                        for (int y = 0; y < bitmap.Height; ++y) {
-                            concurrencySemaphore.Wait();
-                            int _x = x;
-                            int _y = y;
-                            Task task = Task.Factory.StartNew(() =>
-                            {
-                                pos = CalculatePositionFromCanvasPos(_x, _y);
-                                colours[_y] = CalculateColour(pos);
-
-                                concurrencySemaphore.Release();
-                            });
-
-                            tasks.Add(task);
-                        }
-                        Task.WaitAll(tasks.ToArray());
-                        tasks.ForEach(t => t?.Dispose());
-                    }
-
-                    // Fill bitmap pixels with colours
-                    for (int y = 0; y < bitmap.Height; ++y) {
-                        if (colours[y] != Color.Transparent) {
-                            bitmap.SetPixel(x, bitmap.Height - y - 1, colours[y]);
-                        }
-                    }
-
-                    // update Progress
-                    Progress.UpdateProgress(100 * x / bitmap.Width, isForRendering);
-
-                    // for cancellation
-                    m_renderingCancellation.Token.ThrowIfCancellationRequested();
-                }
-                Progress.UpdateProgress(-1, isForRendering);
-
-                if (m_showAxes) {
-                    // Draw axes of the coordinate
-                    Point org = CalculateOriginOnCanvas();
-                    g.DrawLine(Pens.Gray, new Point(org.X, 0), new Point(org.X, bitmap.Height));
-                    g.DrawLine(Pens.Gray, new Point(0, org.Y), new Point(bitmap.Width, org.Y));
-                }
-
-                g.Flush();
-
-                bitmap.RotateFlip(RotateFlipType.RotateNoneFlipY);
-                return bitmap;
-            }
-            catch(Exception ex) {
-                Information.InfoString = ex.Message;
-                g?.Dispose();
-                bitmap?.Dispose();
-                return m_imageCache;
-            }
-        }
-
         private void BitmapToImageSource(Bitmap bitmap)
         {
-            using (MemoryStream ms = new MemoryStream()) {
+            using (var ms = new MemoryStream()) {
                 bitmap.Save(ms, ImageFormat.Bmp);
                 ms.Seek(0, SeekOrigin.Begin);
-                BitmapImage tmpImg = new BitmapImage();
+                var tmpImg = new BitmapImage();
                 tmpImg.BeginInit();
                 tmpImg.CacheOption = BitmapCacheOption.OnLoad;
                 tmpImg.StreamSource = ms;
@@ -396,55 +342,5 @@ namespace MandelbrotSet
                 Image = tmpImg;
             }
         }
-
-        private Point CalculateOriginOnCanvas()
-        {
-            double posX = W / 2;
-            double orgX = posX - X;
-            double ratioX = orgX / W;
-
-            double posY = H / 2;
-            double orgY = posY - Y;
-            double ratioY = orgY / H;
-
-            return new Point((int)(m_canvasSize.Width * ratioX), (int)(m_canvasSize.Height * ratioY));
-        }
-
-        private System.Windows.Point CalculatePositionFromCanvasPos(int x, int y)
-        {
-            double ratioX = (double)x / m_canvasSize.Width;
-            double posX = W * ratioX - W / 2 + X;
-
-            double ratioY = (double)(m_canvasSize.Height - y) / m_canvasSize.Height;
-            double posY = H * ratioY - H / 2 + Y;
-
-            // The mantissa of the double type is 52 bits so that
-            // the value is not accurate enough when the order of X is 1.0
-            // and the order of (W * ratioX - W / 2) is 1.0E-15.
-            return new System.Windows.Point(posX, posY);
-        }
-
-        private Color CalculateColour(System.Windows.Point pos)
-        {
-            bool isOverThreshold = false;
-
-            double X_n = 0;
-            double Y_n = 0;
-            int n = 0;
-            while (n++ < N) {
-                double nextX = X_n * X_n - Y_n * Y_n + pos.X;
-                double nextY = 2 * X_n * Y_n + pos.Y;
-                X_n = nextX;
-                Y_n = nextY;
-                if (X_n * X_n + Y_n * Y_n > Threshold * Threshold) {
-                    isOverThreshold = true;
-                    break;
-                }
-            }
-
-            return isOverThreshold ? Color.Transparent : Color.Black;
-        }
-
-        #endregion
     }
 }

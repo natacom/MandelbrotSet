@@ -19,7 +19,7 @@ namespace MandelbrotSet
             m_timer.AutoReset = false;
             m_timer.Elapsed += (sending, arg) =>
             {
-                InfoString = s_defInfoStr;
+                SetString(s_defInfoStr);
             };
         }
 
@@ -28,16 +28,12 @@ namespace MandelbrotSet
             m_timer?.Dispose();
         }
 
-        public string InfoString
+        public void SetString(string value)
         {
-            get => m_infoString;
-            set
-            {
-                m_infoString = value;
-                Notify();
+            m_infoString = value;
+            Notify();
 
-                m_timer.Start();
-            }
+            m_timer.Start();
         }
     }
 }
